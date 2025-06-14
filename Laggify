@@ -1,0 +1,182 @@
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local mouse = player:GetMouse()
+
+local Library = loadstring(game:HttpGet('https://pastebin.com/raw/PSG07SgP'))()
+local Window = Library:CreateWindow('Laggify', 'Lag Simulation Hub', 'Laggify UI', 'rbxassetid://10618928818', false, 'VisualUIConfigs', 'Default')
+
+local Tab = Window:CreateTab('Lag Tools', true, 'rbxassetid://3926305904', Vector2.new(524, 44), Vector2.new(36, 36))
+local Section = Tab:CreateSection('Lag Controls')
+
+local lagEnabled = false
+local inputDelay = 0.5
+local cpuLagAmount = 0
+
+local keysPressed = {}
+local delayedMovementTask = nil
+
+local function processMovement()
+    if not lagEnabled then return end
+    humanoid:Move(Vector3.new(0,0,0))
+    task.delay(inputDelay, function()
+        if not lagEnabled then return end
+        local moveVector = Vector3.new(0,0,0)
+        if keysPressed.W then moveVector = moveVector + workspace.CurrentCamera.CFrame.LookVector end
+        if keysPressed.S then moveVector = moveVector - workspace.CurrentCamera.CFrame.LookVector end
+        if keysPressed.A then moveVector = moveVector - workspace.CurrentCamera.CFrame.RightVector end
+        if keysPressed.D then moveVector = moveVector + workspace.CurrentCamera.CFrame.RightVector end
+        moveVector = Vector3.new(moveVector.X, 0, moveVector.Z).Unit * (moveVector.Magnitude > 0 and 1 or 0)
+        humanoid:Move(moveVector)
+    end)
+end
+
+Section:CreateToggle('Enable Lag', false, Color3.fromRGB(255,0,0), 0.25, function(value)
+    lagEnabled = value
+    if not lagEnabled then
+        keysPressed = {}
+        humanoid:Move(Vector3.new(0,0,0))
+    end
+end)
+
+Section:CreateSlider('Input Delay (seconds)', 0, 5, 0.5, Color3.fromRGB(255,165,0), function(value)
+    inputDelay = tonumber(string.format("%.2f", value))
+end)
+
+Section:CreateSlider('CPU Lag Intensity', 0, 100, 0, Color3.fromRGB(255,165,0), function(value)
+    cpuLagAmount = math.floor(value)
+end)
+
+local function delayToolActivation(tool)
+    if not tool or not tool:IsA("Tool") then return end
+    local activatedConnection
+    activatedConnection = tool.Activated:Connect(function()
+        if lagEnabled then
+            activatedConnection:Disconnect()
+            tool:Deactivate()
+            task.delay(inputDelay, function()
+                if lagEnabled and tool.Parent == player.Character then
+                    tool:Activate()
+                    delayToolActivation(tool)
+                end
+            end)
+        end
+    end)
+end
+
+local function setupTools(character)
+    for _, tool in pairs(character:GetChildren()) do
+        if tool:IsA("Tool") then
+            delayToolActivation(tool)
+        end
+    end
+    character.ChildAdded:Connect(function(tool)
+        if tool:IsA("Tool") then
+            delayToolActivation(tool)
+        end
+    end)
+end
+
+if player.Character then
+    setupTools(player.Character)
+end
+player.CharacterAdded:Connect(function(char)
+    humanoid = char:WaitForChild("Humanoid")
+    setupTools(char)
+end)
+
+local mouseDown = false
+mouse.Button1Down:Connect(function()
+    if not lagEnabled then return end
+    if mouseDown then return end
+    mouseDown = true
+    local clickPos = mouse.Hit.Position
+    task.delay(inputDelay, function()
+        if lagEnabled then
+            print("[Delayed Click] at ", clickPos)
+        end
+        mouseDown = false
+    end)
+end)
+
+mouse.Button1Up:Connect(function()
+    mouseDown = false
+end)
+
+RunService.Heartbeat:Connect(function()
+    if lagEnabled and cpuLagAmount > 0 then
+        local count = cpuLagAmount * 1000
+        for i = 1, count do
+            local x = math.sqrt(i) * math.sin(i)
+        end
+    end
+end)
+
+local UITab = Window:CreateTab('UI', false, 'rbxassetid://3926305904', Vector2.new(524,44), Vector2.new(36,36))
+local UISection = UITab:CreateSection('UI Controls')
+
+UISection:CreateKeybind('Toggle UI', 'L', function()
+    Library:ToggleUI()
+end)
+
+UISection:CreateButton('Destroy UI', function()
+    Library:DestroyUI()
+end)
+
+UISection:CreateButton('Execute Infinite Yield', function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
+end)
+
+UISection:CreateButton('Kick Self', function()
+    player:Kick("Disconnected: Safety reasons")
+end)
+
+local ThemeTab = Window:CreateTab('Theme', false, 'rbxassetid://3926305904', Vector2.new(524,44), Vector2.new(36,36))
+local ThemeSection = ThemeTab:CreateSection('UI Theme Customization')
+
+local mainColor = Color3.fromRGB(255, 0, 0)
+local bgColor = Color3.fromRGB(25, 25, 25)
+local textColor = Color3.fromRGB(255, 255, 255)
+
+local function applyTheme()
+    Library:ChangeTheme({
+        MainColor = mainColor,
+        Background = bgColor,
+        TextColor = textColor
+    })
+end
+
+ThemeSection:CreateColorpicker('Main Color', mainColor, function(color)
+    mainColor = color
+    applyTheme()
+end)
+
+ThemeSection:CreateColorpicker('Background Color', bgColor, function(color)
+    bgColor = color
+    applyTheme()
+end)
+
+ThemeSection:CreateColorpicker('Text Color', textColor, function(color)
+    textColor = color
+    applyTheme()
+end)
+
+ThemeSection:CreateDropdown('Presets', {'Dark', 'Light', 'Neon'}, function(selected)
+    if selected == 'Dark' then
+        mainColor = Color3.fromRGB(50, 50, 50)
+        bgColor = Color3.fromRGB(20, 20, 20)
+        textColor = Color3.fromRGB(255, 255, 255)
+    elseif selected == 'Light' then
+        mainColor = Color3.fromRGB(200, 200, 200)
+        bgColor = Color3.fromRGB(240, 240, 240)
+        textColor = Color3.fromRGB(0, 0, 0)
+    elseif selected == 'Neon' then
+        mainColor = Color3.fromRGB(57, 255, 20)
+        bgColor = Color3.fromRGB(0, 0, 0)
+        textColor = Color3.fromRGB(57, 255, 20)
+    end
+    applyTheme()
+end)
